@@ -64,17 +64,23 @@ MCP_LOGGING_STDOUT=true
 ### View Logs
 
 <Tabs>
-  <Tab title="macOS">
+  <Tab title="Docker">
     ```bash
-    tail -n 20 -f ~/Library/Logs/Claude/mcp*.log
+    docker logs -f mcp-atlassian
     ```
   </Tab>
-  <Tab title="Windows">
-    ```cmd
-    type %APPDATA%\Claude\logs\mcp*.log | more
+  <Tab title="Local Shell">
+    ```bash
+    MCP_VERY_VERBOSE=true MCP_LOGGING_STDOUT=true uvx mcp-atlassian --transport streamable-http
     ```
   </Tab>
 </Tabs>
+
+If you're connecting from an Open WebUI container, also inspect the Open WebUI backend logs:
+
+```bash
+docker logs -f open-webui
+```
 
 ### MCP Inspector
 

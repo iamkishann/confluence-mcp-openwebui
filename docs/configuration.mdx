@@ -1,22 +1,47 @@
 ---
 title: "Configuration"
-description: "Configure MCP Atlassian for Claude Desktop, Cursor, Windsurf, and VS Code with environment variables"
+description: "Configure MCP Atlassian for Open WebUI, Cursor, Windsurf, and VS Code with environment variables"
 ---
 
 This guide covers IDE integration, environment variables, and advanced configuration options.
 
 ## IDE Integration
 
-### Configuration File Locations
+### Configuration Targets
 
-| IDE | Location |
+| Client | Configuration |
 |-----|----------|
-| Claude Desktop (Windows) | `%APPDATA%\Claude\claude_desktop_config.json` |
-| Claude Desktop (macOS) | `~/Library/Application Support/Claude/claude_desktop_config.json` |
-| Claude Desktop (Linux) | `~/.config/Claude/claude_desktop_config.json` |
+| Open WebUI | Admin Settings → External Tools → Add Server |
 | Cursor | Settings → MCP → + Add new global MCP server |
+| Windsurf | MCP settings UI |
+| VS Code (Copilot) | MCP configuration in settings or workspace tools UI |
 
-### Basic Configuration (uvx)
+### Open WebUI (Streamable HTTP)
+
+Use this when Open WebUI is running in Docker and MCP Atlassian is exposed over HTTP:
+
+```json
+[
+  {
+    "type": "mcp",
+    "url": "http://mcp-atlassian:8000/mcp",
+    "spec_type": "url",
+    "spec": "",
+    "path": "openapi.json",
+    "auth_type": "none",
+    "key": "",
+    "info": {
+      "id": "confluence-mcp",
+      "name": "Confluence MCP Atlassian",
+      "description": "Confluence tools exposed by MCP Atlassian over Streamable HTTP"
+    }
+  }
+]
+```
+
+If Open WebUI runs in Docker and MCP Atlassian runs on the host, use `http://host.docker.internal:8000/mcp` instead of `localhost`.
+
+### Basic Configuration (stdio clients)
 
 ```json
 {
@@ -49,6 +74,19 @@ This guide covers IDE integration, environment variables, and advanced configura
     }
   }
 }
+```
+
+### Confluence-Only Open WebUI Service
+
+For a smaller Open WebUI integration surface, restrict the server to Confluence toolsets:
+
+```bash
+TRANSPORT=streamable-http
+READ_ONLY_MODE=true
+TOOLSETS=confluence_pages,confluence_comments,confluence_attachments
+CONFLUENCE_URL=https://your-company.atlassian.net/wiki
+CONFLUENCE_USERNAME=your.email@company.com
+CONFLUENCE_API_TOKEN=your_api_token
 ```
 
 ### Server/Data Center Configuration

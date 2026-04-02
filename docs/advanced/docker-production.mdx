@@ -20,6 +20,45 @@ docker run -i --rm \
 
 ## Docker Compose
 
+### Open WebUI + Confluence MCP
+
+Run Open WebUI and a Confluence-focused MCP Atlassian service in the same Compose stack:
+
+```yaml
+services:
+  mcp-atlassian:
+    image: ghcr.io/sooperset/mcp-atlassian:latest
+    ports:
+      - "9000:8000"
+    environment:
+      TRANSPORT: streamable-http
+      HOST: 0.0.0.0
+      PORT: 8000
+      READ_ONLY_MODE: "true"
+      TOOLSETS: confluence_pages,confluence_comments,confluence_attachments
+      CONFLUENCE_URL: https://your-company.atlassian.net/wiki
+      CONFLUENCE_USERNAME: your.email@example.com
+      CONFLUENCE_API_TOKEN: your_api_token
+    restart: unless-stopped
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    ports:
+      - "3000:8080"
+    environment:
+      WEBUI_SECRET_KEY: change-me-before-production
+    volumes:
+      - open-webui:/app/backend/data
+    depends_on:
+      - mcp-atlassian
+    restart: unless-stopped
+
+volumes:
+  open-webui:
+```
+
+Then register `http://mcp-atlassian:8000/mcp` in Open WebUI as an MCP server.
+
 ### Basic Setup
 
 ```yaml

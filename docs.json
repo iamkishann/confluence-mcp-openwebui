@@ -63,6 +63,7 @@
           {
             "group": "Guides",
             "pages": [
+              "docs/guides/open-webui",
               "docs/guides/jql-guide",
               "docs/guides/cql-guide",
               "docs/guides/common-workflows"

@@ -17,38 +17,30 @@ uvx mcp-atlassian --help
 uvx --python=3.12 mcp-atlassian --help
 ```
 
-### IDE Configuration with uvx
+### Stdio Client Configuration with uvx
 
-<Tabs>
-  <Tab title="Claude Desktop">
-    Edit your config file:
-    - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-    - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-    - **Linux**: `~/.config/Claude/claude_desktop_config.json`
+For desktop MCP clients such as Cursor, run MCP Atlassian with `uvx` and add this configuration in the client UI:
 
-    ```json
-    {
-      "mcpServers": {
-        "mcp-atlassian": {
-          "command": "uvx",
-          "args": ["mcp-atlassian"],
-          "env": {
-            "CONFLUENCE_URL": "https://your-company.atlassian.net/wiki",
-            "CONFLUENCE_USERNAME": "your.email@company.com",
-            "CONFLUENCE_API_TOKEN": "your_confluence_api_token",
-            "JIRA_URL": "https://your-company.atlassian.net",
-            "JIRA_USERNAME": "your.email@company.com",
-            "JIRA_API_TOKEN": "your_jira_api_token"
-          }
-        }
+```json
+{
+  "mcpServers": {
+    "mcp-atlassian": {
+      "command": "uvx",
+      "args": ["mcp-atlassian"],
+      "env": {
+        "CONFLUENCE_URL": "https://your-company.atlassian.net/wiki",
+        "CONFLUENCE_USERNAME": "your.email@company.com",
+        "CONFLUENCE_API_TOKEN": "your_confluence_api_token",
+        "JIRA_URL": "https://your-company.atlassian.net",
+        "JIRA_USERNAME": "your.email@company.com",
+        "JIRA_API_TOKEN": "your_jira_api_token"
       }
     }
-    ```
-  </Tab>
-  <Tab title="Cursor">
-    Open **Settings** → **MCP** → **+ Add new global MCP server**, then use the same JSON configuration.
-  </Tab>
-</Tabs>
+  }
+}
+```
+
+Open WebUI does not use local `stdio` configuration. Use the HTTP setup below instead.
 
 ## Docker
 
@@ -97,6 +89,47 @@ docker run --rm -i \
 ```
 
 See [Configuration](/docs/configuration) for more Docker options including environment files.
+
+### Open WebUI Container Stack
+
+For Open WebUI, run MCP Atlassian as a Streamable HTTP service instead of a local `stdio` command:
+
+```yaml
+services:
+  mcp-atlassian:
+    image: ghcr.io/sooperset/mcp-atlassian:latest
+    ports:
+      - "9000:8000"
+    environment:
+      TRANSPORT: streamable-http
+      HOST: 0.0.0.0
+      PORT: 8000
+      READ_ONLY_MODE: "true"
+      TOOLSETS: confluence_pages,confluence_comments,confluence_attachments
+      CONFLUENCE_URL: https://your-company.atlassian.net/wiki
+      CONFLUENCE_USERNAME: your.email@company.com
+      CONFLUENCE_API_TOKEN: your_confluence_api_token
+    restart: unless-stopped
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    ports:
+      - "3000:8080"
+    environment:
+      WEBUI_SECRET_KEY: change-me-before-production
+    volumes:
+      - open-webui:/app/backend/data
+    depends_on:
+      - mcp-atlassian
+    restart: unless-stopped
+
+volumes:
+  open-webui:
+```
+
+Inside Open WebUI, add an MCP connection with the server URL `http://mcp-atlassian:8000/mcp`.
+
+See [Open WebUI Guide](/docs/guides/open-webui) for the full Confluence-focused walkthrough.
 
 ## pip
 

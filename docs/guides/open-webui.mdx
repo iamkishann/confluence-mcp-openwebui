@@ -1,0 +1,128 @@
+---
+title: "Open WebUI"
+description: "Run Confluence MCP Atlassian behind a Dockerized Open WebUI deployment"
+---
+
+This guide shows how to run a Confluence-focused MCP Atlassian service behind an Open WebUI container.
+
+## Why This Setup
+
+- Open WebUI natively supports MCP over Streamable HTTP.
+- MCP Atlassian already exposes a `/mcp` endpoint when started with `streamable-http` transport.
+- A Confluence-only toolset keeps the exposed surface smaller and easier to reason about.
+
+## Docker Compose
+
+Create a Compose stack with Open WebUI and MCP Atlassian on the same network:
+
+```yaml
+services:
+  mcp-atlassian:
+    image: ghcr.io/sooperset/mcp-atlassian:latest
+    ports:
+      - "9000:8000"
+    environment:
+      TRANSPORT: streamable-http
+      HOST: 0.0.0.0
+      PORT: 8000
+      READ_ONLY_MODE: "true"
+      TOOLSETS: confluence_pages,confluence_comments,confluence_attachments
+      CONFLUENCE_URL: https://your-company.atlassian.net/wiki
+      CONFLUENCE_USERNAME: your.email@company.com
+      CONFLUENCE_API_TOKEN: your_confluence_api_token
+    restart: unless-stopped
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    ports:
+      - "3000:8080"
+    environment:
+      WEBUI_SECRET_KEY: change-me-before-production
+    volumes:
+      - open-webui:/app/backend/data
+    depends_on:
+      - mcp-atlassian
+    restart: unless-stopped
+
+volumes:
+  open-webui:
+```
+
+Start the stack:
+
+```bash
+docker compose up -d
+```
+
+## Register the MCP Server in Open WebUI
+
+Open WebUI supports native MCP connections over Streamable HTTP.
+
+1. Open **Admin Settings**.
+2. Open **External Tools**.
+3. Add a new server.
+4. Set **Type** to **MCP (Streamable HTTP)**.
+5. Use `http://mcp-atlassian:8000/mcp` as the server URL.
+6. Save the connection.
+
+If you prefer importing JSON, use:
+
+```json
+[
+  {
+    "type": "mcp",
+    "url": "http://mcp-atlassian:8000/mcp",
+    "spec_type": "url",
+    "spec": "",
+    "path": "openapi.json",
+    "auth_type": "none",
+    "key": "",
+    "info": {
+      "id": "confluence-mcp",
+      "name": "Confluence MCP Atlassian",
+      "description": "Confluence tools exposed by MCP Atlassian over Streamable HTTP"
+    }
+  }
+]
+```
+
+## Host vs Container URLs
+
+- Same Compose stack: `http://mcp-atlassian:8000/mcp`
+- MCP Atlassian on the host, Open WebUI in Docker: `http://host.docker.internal:8000/mcp`
+- Remote deployment: `https://your-domain.example.com/mcp`
+
+Do not use `localhost` from inside the Open WebUI container unless the MCP server runs in that same container.
+
+## Recommended Confluence Scope
+
+For Confluence-only usage, start with:
+
+```bash
+READ_ONLY_MODE=true
+TOOLSETS=confluence_pages,confluence_comments,confluence_attachments
+```
+
+This exposes search, page reads, page history, comments, and attachments while avoiding Jira tools entirely.
+
+If you need write operations, set `READ_ONLY_MODE=false` after validating your permissions and expected workflows.
+
+## Verify It Works
+
+1. Open `http://localhost:3000` and sign in to Open WebUI.
+2. Confirm the MCP connection appears in **External Tools**.
+3. Start a chat and enable the tool.
+4. Ask for a simple Confluence action, such as searching a known space or retrieving a page.
+
+## Troubleshooting
+
+- If Open WebUI cannot connect, confirm the MCP server is reachable at `http://mcp-atlassian:8000/mcp` from the Open WebUI container network.
+- If you run Open WebUI in Docker and MCP Atlassian on the host, switch to `host.docker.internal`.
+- If tools appear but fail at runtime, inspect both containers:
+
+```bash
+docker logs -f mcp-atlassian
+docker logs -f open-webui
+```
+
+- If you need OAuth-based remote access instead of static server-side credentials, see [HTTP Transport](/docs/http-transport).

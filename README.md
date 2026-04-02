@@ -26,30 +26,86 @@ Go to https://id.atlassian.com/manage-profile/security/api-tokens and create a t
 
 > For Server/Data Center, use a Personal Access Token instead. See [Authentication](https://mcp-atlassian.soomiles.com/docs/authentication).
 
-### 2. Configure Your IDE
+### 2. Run It With Open WebUI
 
-Add to your Claude Desktop or Cursor MCP configuration:
+Use MCP Atlassian as a Streamable HTTP service and connect it to an Open WebUI container:
 
-```json
-{
-  "mcpServers": {
-    "mcp-atlassian": {
-      "command": "uvx",
-      "args": ["mcp-atlassian"],
-      "env": {
-        "JIRA_URL": "https://your-company.atlassian.net",
-        "JIRA_USERNAME": "your.email@company.com",
-        "JIRA_API_TOKEN": "your_api_token",
-        "CONFLUENCE_URL": "https://your-company.atlassian.net/wiki",
-        "CONFLUENCE_USERNAME": "your.email@company.com",
-        "CONFLUENCE_API_TOKEN": "your_api_token"
-      }
-    }
-  }
-}
+```yaml
+services:
+  mcp-atlassian:
+    image: ghcr.io/sooperset/mcp-atlassian:latest
+    ports:
+      - "9000:8000"
+    environment:
+      TRANSPORT: streamable-http
+      HOST: 0.0.0.0
+      PORT: 8000
+      READ_ONLY_MODE: "true"
+      TOOLSETS: confluence_pages,confluence_comments,confluence_attachments
+      CONFLUENCE_URL: https://your-company.atlassian.net/wiki
+      CONFLUENCE_USERNAME: your.email@company.com
+      CONFLUENCE_API_TOKEN: your_api_token
+    restart: unless-stopped
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    ports:
+      - "3000:8080"
+    environment:
+      WEBUI_SECRET_KEY: change-me-before-production
+    volumes:
+      - open-webui:/app/backend/data
+    depends_on:
+      - mcp-atlassian
+    restart: unless-stopped
+
+volumes:
+  open-webui:
 ```
 
-> **Server/Data Center users**: Use `JIRA_PERSONAL_TOKEN` instead of `JIRA_USERNAME` + `JIRA_API_TOKEN`. See [Authentication](https://mcp-atlassian.soomiles.com/docs/authentication) for details.
+Then in Open WebUI, add an MCP server with the URL `http://mcp-atlassian:8000/mcp`.
+
+If you only see an OpenAPI-focused "Manage Tool Servers" screen, use the **Import JSON** action in that modal and paste:
+
+```json
+[
+  {
+    "type": "mcp",
+    "url": "http://mcp-atlassian:8000/mcp",
+    "spec_type": "url",
+    "spec": "",
+    "path": "openapi.json",
+    "auth_type": "none",
+    "key": "",
+    "info": {
+      "id": "confluence-mcp",
+      "name": "Confluence MCP Atlassian",
+      "description": "Confluence tools exposed by MCP Atlassian over Streamable HTTP"
+    }
+  }
+]
+```
+
+Use `http://localhost:9000/mcp` only for host-side testing. From inside the Open WebUI container network, the correct URL is `http://mcp-atlassian:8000/mcp`.
+
+If your Open WebUI instance cannot add MCP connections directly, use the Workspace Tool bridge script:
+
+- Script path: `scripts/openwebui/mcp_atlassian_workspace_tool.py`
+- In Open WebUI: **Workspace** -> **Tools** -> **Import** -> paste the script.
+- Enable the tool for your model/chat, then call:
+  - `list_mcp_tools()`
+  - `call_mcp_tool(tool_name, arguments_json)`
+
+This tool forwards calls to MCP Atlassian at `http://mcp-atlassian:8000/mcp`.
+
+Ready-to-run files are included in the repo:
+
+- `docker-compose.open-webui.yml`
+- `.env.open-webui.dc.example`
+
+> **Server/Data Center users**: Use `CONFLUENCE_PERSONAL_TOKEN` instead of `CONFLUENCE_USERNAME` + `CONFLUENCE_API_TOKEN`. See [Authentication](https://mcp-atlassian.soomiles.com/docs/authentication) for details.
+
+> For Cursor, VS Code, and other stdio clients, see [Installation](https://mcp-atlassian.soomiles.com/docs/installation) and [Configuration](https://mcp-atlassian.soomiles.com/docs/configuration).
 
 ### 3. Start Using
 
@@ -71,7 +127,8 @@ Documentation is also available in [llms.txt format](https://llmstxt.org/), whic
 |-------|-------------|
 | [Installation](https://mcp-atlassian.soomiles.com/docs/installation) | uvx, Docker, pip, from source |
 | [Authentication](https://mcp-atlassian.soomiles.com/docs/authentication) | API tokens, PAT, OAuth 2.0 |
-| [Configuration](https://mcp-atlassian.soomiles.com/docs/configuration) | IDE setup, environment variables |
+| [Configuration](https://mcp-atlassian.soomiles.com/docs/configuration) | Open WebUI, stdio clients, environment variables |
+| [Open WebUI Guide](https://mcp-atlassian.soomiles.com/docs/guides/open-webui) | Confluence-only container setup for Open WebUI |
 | [HTTP Transport](https://mcp-atlassian.soomiles.com/docs/http-transport) | SSE, streamable-http, multi-user |
 | [Tools Reference](https://mcp-atlassian.soomiles.com/docs/tools-reference) | All Jira & Confluence tools |
 | [Troubleshooting](https://mcp-atlassian.soomiles.com/docs/troubleshooting) | Common issues & debugging |

@@ -1,6 +1,6 @@
 ---
 title: "AI Platform Compatibility"
-description: "Platform compatibility matrix — Claude Desktop, Cursor, Cline, and Cloud vs Server/DC feature comparison"
+description: "Platform compatibility matrix — Open WebUI, Cursor, Cline, and Cloud vs Server/DC feature comparison"
 ---
 
 MCP Atlassian works with any MCP-compatible client. This page documents platform-specific notes and known issues.
@@ -9,7 +9,7 @@ MCP Atlassian works with any MCP-compatible client. This page documents platform
 
 | Platform | Status | Transport | Notes |
 |----------|--------|-----------|-------|
-| Claude Desktop | Fully supported | stdio | Primary development target |
+| Open WebUI | Fully supported | streamable-http | Best fit for container deployments |
 | Cursor | Fully supported | stdio | |
 | Windsurf | Fully supported | stdio | |
 | VS Code (Copilot) | Supported | stdio | See [Copilot setup](#github-copilot) |
@@ -31,6 +31,26 @@ MCP Atlassian includes automatic schema sanitization to ensure compatibility wit
 These constraints are enforced by CI tests across all tools.
 
 ## Platform-Specific Notes
+
+### Open WebUI
+
+Open WebUI supports MCP over Streamable HTTP. Recommended setup notes:
+
+<Steps>
+  <Step title="Use Streamable HTTP">
+    Start MCP Atlassian with `--transport streamable-http` or `TRANSPORT=streamable-http`, then connect Open WebUI to the `/mcp` endpoint.
+  </Step>
+
+  <Step title="Use container-aware URLs">
+    If Open WebUI and MCP Atlassian run in the same Docker Compose stack, use `http://mcp-atlassian:8000/mcp`.
+
+    If Open WebUI runs in Docker and MCP Atlassian runs on the host, use `http://host.docker.internal:8000/mcp`.
+  </Step>
+
+  <Step title="Prefer scoped toolsets">
+    For Confluence-focused deployments, set `TOOLSETS=confluence_pages,confluence_comments,confluence_attachments` and consider `READ_ONLY_MODE=true` until write access is required.
+  </Step>
+</Steps>
 
 ### GitHub Copilot
 
