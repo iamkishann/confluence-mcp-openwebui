@@ -1,6 +1,8 @@
 services:
   mcp-atlassian:
-    image: ghcr.io/sooperset/mcp-atlassian:latest
+    image: mcp-atlassian:local
+    build:
+      context: .
     container_name: mcp-atlassian
     env_file:
       - .env.open-webui.dc

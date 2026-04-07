@@ -16,6 +16,7 @@ from fastmcp.server.event_store import EventStore
 from fastmcp.server.http import StarletteWithLifespan
 from fastmcp.tools import Tool as FastMCPTool
 from mcp.types import Tool as MCPTool
+from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware import Middleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -60,6 +61,21 @@ DEFAULT_ALLOWED_REDIRECT_URIS = [
 ]
 DEFAULT_ALLOWED_GRANT_TYPES = ["authorization_code", "refresh_token"]
 OAUTH_PROXY_ENABLE_ENV = "ATLASSIAN_OAUTH_PROXY_ENABLE"
+
+
+def _get_mcp_cors_allow_origins() -> list[str]:
+        """Resolve allowed CORS origins for MCP HTTP endpoints.
+
+        Environment variable:
+        - MCP_CORS_ALLOW_ORIGINS: Comma-separated origins or '*' (default).
+            Example: http://localhost:3000,https://chat.example.com
+        """
+        raw = os.getenv("MCP_CORS_ALLOW_ORIGINS", "*")
+        if raw.strip() == "*":
+                return ["*"]
+
+        origins = [origin.strip() for origin in raw.split(",") if origin.strip()]
+        return origins or ["*"]
 
 
 def _sanitize_schema_for_compatibility(tool: MCPTool) -> MCPTool:
@@ -344,8 +360,26 @@ class AtlassianMCP(FastMCP[MainAppContext]):
             final_path = self._normalize_http_path(configured_path)
             self._active_streamable_http_path = final_path
 
+        allow_origins = _get_mcp_cors_allow_origins()
+        cors_mw = Middleware(
+            CORSMiddleware,
+            allow_origins=allow_origins,
+            allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+            allow_headers=[
+                "authorization",
+                "content-type",
+                "mcp-session-id",
+                "x-atlassian-cloud-id",
+                "x-atlassian-jira-url",
+                "x-atlassian-jira-personal-token",
+                "x-atlassian-confluence-url",
+                "x-atlassian-confluence-personal-token",
+            ],
+            expose_headers=["mcp-session-id"],
+            max_age=600,
+        )
         user_token_mw = Middleware(UserTokenMiddleware, mcp_server_ref=self)
-        final_middleware_list = [user_token_mw]
+        final_middleware_list = [cors_mw, user_token_mw]
         if middleware:
             final_middleware_list.extend(middleware)
         app = super().http_app(
